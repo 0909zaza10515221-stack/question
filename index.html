@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Pergunta</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Quicksand:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-top: #fffcfd;
+      --bg-bottom: #f2f7ff;
+      --pink-main: #ff6ea7;
+      --pink-top: #ff8ec2;
+      --pink-shadow: #d8457f;
+      --pink-glow: rgba(255, 110, 167, 0.35);
+      --blue-main: #6cb8ff;
+      --blue-top: #9cd0ff;
+      --blue-shadow: #3f8ed8;
+      --blue-glow: rgba(108, 184, 255, 0.35);
+      --text-color: #4a4453;
+      --text-shadow: rgba(74, 68, 83, 0.12);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Fredoka', 'Quicksand', sans-serif;
+      background: linear-gradient(180deg, var(--bg-top) 0%, var(--bg-bottom) 100%);
+      position: relative;
+    }
+
+    /* Container de balões caindo no fundo */
+    .balloon-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 2;
+      overflow: hidden;
+    }
+
+    /* Balão 3D fofinho descendo */
+    .balloon {
+      position: absolute;
+      top: -160px;
+      will-change: transform, top;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      filter: drop-shadow(0 10px 14px rgba(0, 0, 0, 0.07));
+      opacity: 0.93;
+    }
+
+    .balloon-body {
+      border-radius: 50% 50% 50% 50% / 45% 45% 55% 55%;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Brilho 3D no balão */
+    .balloon-body::before {
+      content: '';
+      position: absolute;
+      top: 12%;
+      left: 18%;
+      width: 26%;
+      height: 36%;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255, 255, 255, 0.75) 0%, rgba(255, 255, 255, 0) 80%);
+      transform: rotate(-25deg);
+    }
+
+    .balloon-knot {
+      width: 10px;
+      height: 6px;
+      border-radius: 3px;
+      margin-top: -2px;
+      z-index: 2;
+    }
+
+    .balloon-string {
+      width: 2px;
+      height: 65px;
+      background: rgba(180, 180, 195, 0.45);
+      transform-origin: top center;
+      animation: stringSway 3s ease-in-out infinite alternate;
+    }
+
+    @keyframes stringSway {
+      0% { transform: rotate(-5deg); }
+      100% { transform: rotate(5deg); }
+    }
+
+    /* Container de Estrelas Cadentes */
+    .shooting-stars-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 3;
+      overflow: hidden;
+    }
+
+    /* Grupo da estrela cadente com cauda de estrelinhas (estilo o desenho) */
+    .shooting-star-group {
+      position: absolute;
+      pointer-events: none;
+      will-change: transform, opacity;
+    }
+
+    .star-sparkle {
+      position: absolute;
+      animation: sparkleGlow 0.8s ease-in-out infinite alternate;
+    }
+
+    @keyframes sparkleGlow {
+      0% { transform: scale(0.85) rotate(0deg); opacity: 0.75; }
+      100% { transform: scale(1.15) rotate(20deg); opacity: 1; }
+    }
+
+    /* Efeito de bolhas suaves ao clicar no botão Não */
+    .soap-bubble {
+      position: fixed;
+      pointer-events: none;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.85) 0%, rgba(180, 220, 255, 0.4) 50%, rgba(140, 190, 255, 0.25) 100%);
+      border: 1.5px solid rgba(255, 255, 255, 0.8);
+      box-shadow: 0 4px 10px rgba(108, 184, 255, 0.25), inset -2px -2px 6px rgba(100, 150, 255, 0.3);
+      z-index: 35;
+      will-change: transform, opacity;
+    }
+
+    /* Área central da tela */
+    .main-wrapper {
+      position: relative;
+      z-index: 10;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    /* =================================================================
+       A FRONTEIRA INVISÍVEL EXATA (RETÂNGULO VERMELHO DO USUÁRIO)
+       O botão NÃO fica ESTRITAMENTE preso dentro desta fronteira
+       ================================================================= */
+    .frontier-boundary {
+      position: relative;
+      width: min(78vw, 760px);
+      height: min(60vh, 450px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+      /* Invisível conforme solicitado */
+      border: 2px solid transparent;
+      opacity: 0;
+      transform: scale(0.92) translateY(20px);
+      animation: appearSmooth 1.3s cubic-bezier(0.16, 1, 0.3, 1) 0.3s forwards;
+    }
+
+    @keyframes appearSmooth {
+      0% {
+        opacity: 0;
+        transform: scale(0.9) translateY(25px);
+        filter: blur(8px);
+      }
+      100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+        filter: blur(0);
+      }
+    }
+
+    /* Pergunta com estilo 3D fofinho */
+    .question-title {
+      font-size: clamp(2rem, 5.2vw, 3.5rem);
+      font-weight: 700;
+      color: var(--text-color);
+      letter-spacing: -0.5px;
+      line-height: 1.25;
+      margin-bottom: 45px;
+      text-align: center;
+      text-shadow: 
+        0 4px 0 #ede5ed,
+        0 8px 18px var(--text-shadow);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: gentleBob 3.5s ease-in-out infinite alternate;
+    }
+
+    @keyframes gentleBob {
+      0% { transform: translateY(0); }
+      100% { transform: translateY(-7px); }
+    }
+
+    /* Container dos botões */
+    .buttons-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 36px;
+      position: relative;
+      width: 100%;
+      min-height: 80px;
+    }
+
+    /* Estilo 3D Lindinho para os Botões */
+    .btn-3d {
+      appearance: none;
+      -webkit-appearance: none;
+      border: none;
+      outline: none;
+      cursor: pointer;
+      font-family: 'Fredoka', 'Quicksand', sans-serif;
+      font-size: clamp(1.25rem, 3.4vw, 1.65rem);
+      font-weight: 700;
+      color: #ffffff;
+      padding: 16px 44px;
+      border-radius: 40px;
+      position: relative;
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+    }
+
+    /* Brilho 3D tipo bombom/doce */
+    .btn-3d::before {
+      content: '';
+      position: absolute;
+      top: 3px;
+      left: 10%;
+      width: 80%;
+      height: 42%;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.65) 0%, rgba(255, 255, 255, 0.05) 100%);
+      border-radius: 30px;
+      pointer-events: none;
+    }
+
+    /* Botão SIM: Rosa 3D (fica perfeitamente parado no lugar) */
+    .btn-sim {
+      background: linear-gradient(180deg, var(--pink-top) 0%, var(--pink-main) 100%);
+      box-shadow: 
+        0 8px 0 var(--pink-shadow),
+        0 14px 22px var(--pink-glow),
+        inset 0 -2px 5px rgba(0, 0, 0, 0.12);
+      animation: floatButtonSim 3s ease-in-out infinite alternate;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .btn-sim:hover {
+      transform: translateY(-3px) scale(1.05);
+      box-shadow: 
+        0 11px 0 var(--pink-shadow),
+        0 18px 28px var(--pink-glow);
+    }
+
+    .btn-sim:active {
+      transform: translateY(5px) scale(0.97);
+      box-shadow: 
+        0 3px 0 var(--pink-shadow),
+        0 6px 14px var(--pink-glow);
+    }
+
+    @keyframes floatButtonSim {
+      0% { transform: translateY(0); }
+      100% { transform: translateY(-8px); }
+    }
+
+    /* Botão NÃO: Azul Bebê 3D */
+    .btn-nao {
+      background: linear-gradient(180deg, var(--blue-top) 0%, var(--blue-main) 100%);
+      box-shadow: 
+        0 8px 0 var(--blue-shadow),
+        0 14px 22px var(--blue-glow),
+        inset 0 -2px 5px rgba(0, 0, 0, 0.12);
+      animation: floatButtonNao 3.2s ease-in-out 0.4s infinite alternate;
+      /* Transição hiper suave com física de pulo curto */
+      transition: transform 0.28s cubic-bezier(0.18, 0.89, 0.32, 1.15), box-shadow 0.2s ease;
+      will-change: transform;
+      z-index: 20;
+    }
+
+    /* Desativa o float nativo quando começa a pular para não interferir no transform */
+    .btn-nao.has-moved {
+      animation: none !important;
+    }
+
+    @keyframes floatButtonNao {
+      0% { transform: translateY(0); }
+      100% { transform: translateY(-9px); }
+    }
+
+    /* Modal de Sucesso */
+    .success-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(255, 255, 255, 0.88);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.5s ease;
+    }
+
+    .success-overlay.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .success-card {
+      background: #ffffff;
+      border-radius: 36px;
+      padding: 38px 28px;
+      max-width: 440px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 
+        0 20px 60px rgba(255, 110, 167, 0.22),
+        0 8px 0 #ffe0ed;
+      border: 3px solid #ffedf5;
+      transform: scale(0.7) translateY(40px);
+      transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .success-overlay.show .success-card {
+      transform: scale(1) translateY(0);
+    }
+
+    .success-icon {
+      font-size: 4rem;
+      margin-bottom: 16px;
+      display: inline-block;
+      animation: bounceSuccess 1s infinite alternate;
+    }
+
+    @keyframes bounceSuccess {
+      0% { transform: scale(1); }
+      100% { transform: scale(1.15) rotate(5deg); }
+    }
+
+    .success-title {
+      font-size: 2.1rem;
+      font-weight: 700;
+      color: #ff528f;
+      margin-bottom: 10px;
+    }
+
+    .success-desc {
+      font-size: 1.25rem;
+      color: #635b70;
+      font-weight: 600;
+      line-height: 1.45;
+      margin-bottom: 26px;
+    }
+
+    .whatsapp-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      background: linear-gradient(180deg, #25d366 0%, #1ea952 100%);
+      color: white;
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 1.15rem;
+      padding: 14px 28px;
+      border-radius: 30px;
+      box-shadow: 0 6px 0 #15823e, 0 12px 20px rgba(37, 211, 102, 0.35);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      cursor: pointer;
+    }
+
+    .whatsapp-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 0 #15823e, 0 16px 24px rgba(37, 211, 102, 0.45);
+    }
+
+    .whatsapp-btn:active {
+      transform: translateY(3px);
+      box-shadow: 0 2px 0 #15823e;
+    }
+
+    /* Confetes */
+    .confetti {
+      position: fixed;
+      pointer-events: none;
+      z-index: 101;
+      will-change: transform, opacity;
+    }
+
+    @media (max-width: 600px) {
+      .frontier-boundary {
+        width: 92vw;
+        height: 65vh;
+      }
+
+      .question-title {
+        font-size: 2.1rem;
+        margin-bottom: 35px;
+      }
+
+      .btn-3d {
+        padding: 14px 34px;
+        font-size: 1.35rem;
+      }
+
+      .buttons-container {
+        gap: 22px;
+      }
+
+      .success-card {
+        padding: 30px 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Balões caindo no fundo -->
+  <div class="balloon-container" id="balloonContainer"></div>
+
+  <!-- Estrelas cadentes -->
+  <div class="shooting-stars-container" id="starsContainer"></div>
+
+  <!-- Conteúdo Principal -->
+  <main class="main-wrapper">
+    <!-- FRONTEIRA INVISÍVEL EXATA QUE ENQUADRA A PERGUNTA E OS BOTÕES -->
+    <div class="frontier-boundary" id="frontierBoundary">
+      <!-- Você pode alterar a pergunta livremente aqui: -->
+      <h1 class="question-title" id="questionTitle">Bó jogar GTA6?</h1>
+
+      <div class="buttons-container" id="buttonsWrapper">
+        <button type="button" class="btn-3d btn-sim" id="btnSim">Sim</button>
+        <button type="button" class="btn-3d btn-nao" id="btnNao">Não</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- Modal de Confirmação (Universal para qualquer pergunta) -->
+  <div class="success-overlay" id="successOverlay">
+    <div class="success-card">
+      <div class="success-icon">🎉✨</div>
+      <h2 class="success-title">Confirmado! 🎉</h2>
+      <p class="success-desc">Resposta registrada com sucesso!</p>
+      <a href="https://api.whatsapp.com/send?phone=5511991156083&text=Simmmmmmmm!" 
+         target="_blank" 
+         class="whatsapp-btn" 
+         id="whatsappBtn">
+        <span>Avisar no WhatsApp</span>
+        <span>📲</span>
+      </a>
+    </div>
+  </div>
+
+  <script>
+    /* =================================================================
+       1. BALÕES DESCENDO NO FUNDO (NÃO MUITO RÁPIDO NEM MUITO CHEIO)
+       ================================================================= */
+    const balloonColors = [
+      { top: '#ff9ebb', main: '#ff6b95', knot: '#e04c75' },
+      { top: '#ffd97d', main: '#ffbe3b', knot: '#d89b1c' },
+      { top: '#a0e3b2', main: '#65cf82', knot: '#47a861' },
+      { top: '#9cd5ff', main: '#5daeff', knot: '#3789d8' },
+      { top: '#ffb38a', main: '#ff8450', knot: '#d85e2b' },
+      { top: '#d8b4f8', main: '#b97beb', knot: '#9353c7' }
+    ];
+
+    const balloonContainer = document.getElementById('balloonContainer');
+    const MAX_BALLOONS = 9;
+    let activeBalloons = 0;
+
+    function createFallingBalloon() {
+      if (activeBalloons >= MAX_BALLOONS) return;
+
+      const balloon = document.createElement('div');
+      balloon.className = 'balloon';
+
+      const color = balloonColors[Math.floor(Math.random() * balloonColors.length)];
+      const width = Math.floor(Math.random() * 26) + 48;
+      const height = Math.floor(width * 1.25);
+      
+      const leftPos = Math.random() * (window.innerWidth - width - 20) + 10;
+      balloon.style.left = `${leftPos}px`;
+      
+      const duration = Math.random() * 8 + 12;
+      const horizontalDrift = (Math.random() - 0.5) * 70;
+
+      balloon.innerHTML = `
+        <div class="balloon-body" style="
+          width: ${width}px; 
+          height: ${height}px; 
+          background: linear-gradient(135deg, ${color.top} 0%, ${color.main} 100%);
+          box-shadow: inset -4px -6px 12px rgba(0,0,0,0.1), 0 8px 18px rgba(0,0,0,0.06);
+        "></div>
+        <div class="balloon-knot" style="background: ${color.knot};"></div>
+        <div class="balloon-string"></div>
+      `;
+
+      balloonContainer.appendChild(balloon);
+      activeBalloons++;
+
+      const keyframes = [
+        { 
+          transform: `translateY(0px) translateX(0px) rotate(${Math.random() * 6 - 3}deg)`,
+          opacity: 0
+        },
+        { 
+          offset: 0.1, 
+          opacity: 0.95 
+        },
+        { 
+          offset: 0.5, 
+          transform: `translateY(${(window.innerHeight + 240) * 0.5}px) translateX(${horizontalDrift}px) rotate(${Math.random() * 10 - 5}deg)` 
+        },
+        { 
+          offset: 0.9, 
+          opacity: 0.95 
+        },
+        { 
+          transform: `translateY(${window.innerHeight + 260}px) translateX(${horizontalDrift * 1.5}px) rotate(${Math.random() * 8 - 4}deg)`,
+          opacity: 0
+        }
+      ];
+
+      const anim = balloon.animate(keyframes, {
+        duration: duration * 1000,
+        easing: 'linear'
+      });
+
+      anim.onfinish = () => {
+        balloon.remove();
+        activeBalloons--;
+      };
+    }
+
+    for (let i = 0; i < 4; i++) {
+      setTimeout(() => createFallingBalloon(), i * 1800);
+    }
+    setInterval(() => {
+      createFallingBalloon();
+    }, 2400);
+
+
+    /* =================================================================
+       2. ESTRELAS CADENTES COM CAUDA DE ESTRELINHAS (10 a 20 SEGUNDOS)
+       ================================================================= */
+    const starsContainer = document.getElementById('starsContainer');
+
+    function getStarSvg(size, fill = '#ffe600', stroke = '#f5c000') {
+      return `
+        <svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="${fill}" stroke="${stroke}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+        </svg>
+      `;
+    }
+
+    function shootStar() {
+      const group = document.createElement('div');
+      group.className = 'shooting-star-group';
+
+      const startX = Math.random() * (window.innerWidth * 0.65);
+      const startY = Math.random() * (window.innerHeight * 0.35);
+      
+      const travelDist = Math.min(window.innerWidth, window.innerHeight) * 0.65;
+      const angle = 40 + (Math.random() * 15);
+      const rad = (angle * Math.PI) / 180;
+
+      group.style.left = `${startX}px`;
+      group.style.top = `${startY}px`;
+
+      let html = `
+        <div class="star-sparkle" style="left: 0px; top: 0px; filter: drop-shadow(0 0 10px #ffe600);">
+          ${getStarSvg(34, '#ffe600', '#f1a80a')}
+        </div>
+      `;
+
+      const trailCount = 7;
+      for (let i = 1; i <= trailCount; i++) {
+        const offset = i * 16;
+        const driftX = -Math.cos(rad) * offset + (Math.random() * 14 - 7);
+        const driftY = -Math.sin(rad) * offset + (Math.random() * 14 - 7);
+        const size = Math.max(12, 28 - i * 3);
+        const isOutline = i % 2 === 0;
+        const fill = isOutline ? 'none' : '#fff066';
+        
+        html += `
+          <div class="star-sparkle" style="
+            left: ${driftX}px; 
+            top: ${driftY}px; 
+            opacity: ${0.95 - (i * 0.12)};
+            animation-delay: ${i * 0.1}s;
+          ">
+            ${getStarSvg(size, fill, '#f5c000')}
+          </div>
+        `;
+      }
+
+      group.innerHTML = html;
+      starsContainer.appendChild(group);
+
+      const duration = 1800;
+      const anim = group.animate([
+        {
+          transform: 'translate(0, 0) scale(0.6)',
+          opacity: 0
+        },
+        {
+          offset: 0.15,
+          opacity: 1,
+          transform: `translate(${travelDist * 0.15 * Math.cos(rad)}px, ${travelDist * 0.15 * Math.sin(rad)}px) scale(1)`
+        },
+        {
+          offset: 0.8,
+          opacity: 0.9,
+          transform: `translate(${travelDist * 0.8 * Math.cos(rad)}px, ${travelDist * 0.8 * Math.sin(rad)}px) scale(0.95)`
+        },
+        {
+          transform: `translate(${travelDist * Math.cos(rad)}px, ${travelDist * Math.sin(rad)}px) scale(0.5)`,
+          opacity: 0
+        }
+      ], {
+        duration: duration,
+        easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)'
+      });
+
+      anim.onfinish = () => group.remove();
+      scheduleNextShootingStar();
+    }
+
+    function scheduleNextShootingStar() {
+      const delay = Math.floor(Math.random() * 10000) + 10000;
+      setTimeout(shootStar, delay);
+    }
+
+    setTimeout(shootStar, 4000);
+
+
+    /* =================================================================
+       3. BOTÃO "NÃO" FUJÃO:
+       - Fica perfeitamente no lugar junto do Sim.
+       - Corre um pouquinho em direção aleatória APENAS quando recebe o clique.
+       - Fica 100% PRESO dentro da fronteira do desenho (NUNCA ULTRAPASSA).
+       - Sem nenhum som.
+       ================================================================= */
+    const btnNao = document.getElementById('btnNao');
+    const btnSim = document.getElementById('btnSim');
+    const frontierBoundary = document.getElementById('frontierBoundary');
+
+    let currentOffsetX = 0;
+    let currentOffsetY = 0;
+    let isDodging = false;
+
+    // Bolhinhas visuais suaves
+    function createSoapBubbles(originX, originY) {
+      const count = 3;
+      for (let i = 0; i < count; i++) {
+        const bubble = document.createElement('div');
+        bubble.className = 'soap-bubble';
+        const size = Math.floor(Math.random() * 14) + 12;
+        bubble.style.width = `${size}px`;
+        bubble.style.height = `${size}px`;
+
+        const offsetX = (Math.random() - 0.5) * 35;
+        const offsetY = (Math.random() - 0.5) * 25;
+
+        bubble.style.left = `${originX + offsetX}px`;
+        bubble.style.top = `${originY + offsetY}px`;
+
+        document.body.appendChild(bubble);
+
+        const driftY = -(Math.random() * 35 + 15);
+        const driftX = (Math.random() - 0.5) * 35;
+
+        const anim = bubble.animate([
+          { transform: 'translate(0, 0) scale(0.6)', opacity: 0.85 },
+          { transform: `translate(${driftX}px, ${driftY}px) scale(1.1)`, opacity: 0 }
+        ], {
+          duration: Math.random() * 300 + 300,
+          easing: 'ease-out'
+        });
+
+        anim.onfinish = () => bubble.remove();
+      }
+    }
+
+    // Calcula os limites matemáticos absolutos para o deslocamento dentro da fronteira
+    function getOffsetLimits() {
+      const box = frontierBoundary.getBoundingClientRect();
+      const btnRect = btnNao.getBoundingClientRect();
+
+      // Posição não-deslocada (base) do botão na tela
+      const baseLeft = btnRect.left - currentOffsetX;
+      const baseTop = btnRect.top - currentOffsetY;
+      const btnW = btnRect.width;
+      const btnH = btnRect.height;
+      const pad = 14; // Margem interna de segurança da fronteira
+
+      return {
+        minX: box.left + pad - baseLeft,
+        maxX: box.right - pad - btnW - baseLeft,
+        minY: box.top + pad - baseTop,
+        maxY: box.bottom - pad - btnH - baseTop,
+        baseLeft,
+        baseTop,
+        btnW,
+        btnH
+      };
+    }
+
+    // Função de pulo executada APENAS ao tentar clicar no botão "Não"
+    function dodgeOnClick(e) {
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+
+      if (isDodging) return;
+      isDodging = true;
+      setTimeout(() => { isDodging = false; }, 160);
+
+      btnNao.classList.add('has-moved');
+
+      const limits = getOffsetLimits();
+      const simRect = btnSim.getBoundingClientRect();
+
+      // Coordenadas absolutas de onde o botão Não ficaria na tela
+      let bestOffsetX = currentOffsetX;
+      let bestOffsetY = currentOffsetY;
+      let foundValid = false;
+
+      // Tenta 30 direções aleatórias para dar um pulinho
+      for (let i = 0; i < 30; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const hopDist = Math.floor(Math.random() * 55) + 95; // Pulo de 95px a 150px
+
+        const candOffsetX = currentOffsetX + Math.cos(angle) * hopDist;
+        const candOffsetY = currentOffsetY + Math.sin(angle) * hopDist;
+
+        // Limita ESTRITAMENTE dentro da fronteira
+        const clampedX = Math.max(limits.minX, Math.min(limits.maxX, candOffsetX));
+        const clampedY = Math.max(limits.minY, Math.min(limits.maxY, candOffsetY));
+
+        // Posição no viewport para testar colisão com o Sim
+        const candCenterScreenX = limits.baseLeft + clampedX + limits.btnW / 2;
+        const candCenterScreenY = limits.baseTop + clampedY + limits.btnH / 2;
+        const simCenterX = simRect.left + simRect.width / 2;
+        const simCenterY = simRect.top + simRect.height / 2;
+
+        const distSim = Math.hypot(candCenterScreenX - simCenterX, candCenterScreenY - simCenterY);
+        const distFromPrev = Math.hypot(clampedX - currentOffsetX, clampedY - currentOffsetY);
+
+        // Deve se mover pelo menos 65px e nunca encostar no botão Sim
+        if (distFromPrev >= 65 && distSim >= 115) {
+          bestOffsetX = clampedX;
+          bestOffsetY = clampedY;
+          foundValid = true;
+          break;
+        }
+      }
+
+      // Se todas as tentativas caíram perto do Sim, escolhe um ponto seguro na fronteira
+      if (!foundValid) {
+        // Pula para a lateral oposta
+        bestOffsetX = (currentOffsetX >= 0) ? limits.minX : limits.maxX;
+        bestOffsetY = Math.max(limits.minY, Math.min(limits.maxY, currentOffsetY + (Math.random() - 0.5) * 80));
+      }
+
+      // CLAMP MATEMÁTICO INVIOLÁVEL: 100% PRESO DENTRO DA FRONTEIRA
+      currentOffsetX = Math.max(limits.minX, Math.min(limits.maxX, bestOffsetX));
+      currentOffsetY = Math.max(limits.minY, Math.min(limits.maxY, bestOffsetY));
+
+      // Aplica a nova posição com transição suave
+      btnNao.style.transform = `translate(${Math.round(currentOffsetX)}px, ${Math.round(currentOffsetY)}px)`;
+
+      // Bolhinhas visuais
+      const curBtnRect = btnNao.getBoundingClientRect();
+      createSoapBubbles(curBtnRect.left + curBtnRect.width / 2, curBtnRect.top + curBtnRect.height / 2);
+    }
+
+    // Apenas ao pressionar/clicar no botão Não ele dá o pulinho
+    btnNao.addEventListener('pointerdown', dodgeOnClick);
+    btnNao.addEventListener('touchstart', dodgeOnClick, { passive: false });
+    btnNao.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    });
+
+    // Em redimensionamento da janela, garante que continue dentro da fronteira
+    window.addEventListener('resize', () => {
+      if (currentOffsetX !== 0 || currentOffsetY !== 0) {
+        const limits = getOffsetLimits();
+        currentOffsetX = Math.max(limits.minX, Math.min(limits.maxX, currentOffsetX));
+        currentOffsetY = Math.max(limits.minY, Math.min(limits.maxY, currentOffsetY));
+        btnNao.style.transform = `translate(${Math.round(currentOffsetX)}px, ${Math.round(currentOffsetY)}px)`;
+      }
+    });
+
+
+    /* =================================================================
+       4. CLIQUE NO SIM: COMEMORAÇÃO E CONFETES
+       ================================================================= */
+    const successOverlay = document.getElementById('successOverlay');
+
+    btnSim.addEventListener('click', () => {
+      const questionText = document.getElementById('questionTitle')?.innerText?.trim();
+      const zapBtn = document.getElementById('whatsappBtn');
+      if (zapBtn && questionText) {
+        const textMsg = encodeURIComponent(`Simmmmmmmm! 🎉`);
+        zapBtn.href = `https://api.whatsapp.com/send?phone=5511991156083&text=${textMsg}`;
+      }
+      successOverlay.classList.add('show');
+      createVictoryConfetti();
+    });
+
+    function createVictoryConfetti() {
+      const emojis = ['\u{1F389}', '\u{1F38A}', '\u{2728}', '\u{2B50}', '\u{1F388}', '\u{1F973}'];
+      const total = 45;
+
+      for (let i = 0; i < total; i++) {
+        const item = document.createElement('div');
+        item.className = 'confetti';
+        item.innerText = emojis[Math.floor(Math.random() * emojis.length)];
+        
+        const size = Math.random() * 18 + 18;
+        item.style.fontSize = `${size}px`;
+
+        const startX = Math.random() * window.innerWidth;
+        item.style.left = `${startX}px`;
+        item.style.top = `-50px`;
+
+        document.body.appendChild(item);
+
+        const duration = Math.random() * 2500 + 2000;
+        const xDrift = (Math.random() - 0.5) * 200;
+        const rotation = (Math.random() - 0.5) * 720;
+
+        const anim = item.animate([
+          { transform: 'translateY(0) rotate(0deg)', opacity: 1 },
+          { transform: `translateY(${window.innerHeight + 100}px) translateX(${xDrift}px) rotate(${rotation}deg)`, opacity: 0 }
+        ], {
+          duration: duration,
+          easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)'
+        });
+
+        anim.onfinish = () => item.remove();
+      }
+    }
+  </script>
+</body>
+</html>
